@@ -1,56 +1,60 @@
 package com.opencosmos.automation.apidoc;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.opencosmos.automation.apidoc.info.AnalysisResult;
+import com.opencosmos.automation.apidoc.info.ClassInformation;
+import com.opencosmos.automation.apidoc.info.EnumInformation;
+import com.opencosmos.automation.apidoc.info.EnumValueInformation;
+import com.opencosmos.automation.apidoc.info.FieldInformation;
 
 public class MarkdownGenerator {
 
-	private final ClassForestInformation info;
+	private final AnalysisResult info;
 
-	public MarkdownGenerator(ClassForestInformation info) {
+	public MarkdownGenerator(AnalysisResult info) {
 		this.info = info;
-	}
-
-	private static String getDescription(Class<?> type) {
-		Description annot = type.getAnnotation(Description.class);
-		if (annot == null) {
-			throw new Error("Failed to get description for class " + type.getCanonicalName());
-		}
-		return annot.value();
-	}
-
-	private static String getDescription(Class<?> type, Field field) {
-		Description annot = field.getAnnotation(Description.class);
-		if (annot == null) {
-			throw new Error(
-					"Failed to get description for field " + field.getName() + " of type " + type.getCanonicalName());
-		}
-		return annot.value();
 	}
 
 	public List<String> generate(String title, Class<?> topLevel) {
 		List<String> out = new ArrayList<>();
 		out.add("# " + title);
 		out.add("Top level class: " + topLevel.getSimpleName());
-		for (Map.Entry<Class<?>, Set<Field>> kv : info.data.entrySet().stream()
-				.sorted((a, b) -> a.getKey().getSimpleName().compareToIgnoreCase(b.getKey().getSimpleName()))
+		out.add("");
+		out.add("# Classes");
+		for (ClassInformation classInfo : info.getClassCache().stream()
+				.sorted((a, b) -> a.getFriendlyName().compareToIgnoreCase(b.getFriendlyName()))
 				.collect(Collectors.toList())) {
-			Class<?> type = kv.getKey();
 			out.add("");
-			out.add(String.format("# %s", type.getSimpleName()));
-			out.add(getDescription(type));
-			if (kv.getValue().isEmpty()) {
+			out.add(String.format("## %s (%s)", classInfo.getFriendlyName(), classInfo.getFullName()));
+			out.add(classInfo.getDescription());
+			if (classInfo.getFields().isEmpty()) {
 				continue;
 			}
 			out.add("Members:");
-			for (Field field : kv.getValue().stream().sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+			for (FieldInformation field : classInfo.getFields().stream()
+					.sorted((a, b) -> a.getFriendlyName().compareToIgnoreCase(b.getFriendlyName()))
 					.collect(Collectors.toList())) {
-				out.add(String.format(" * %s : %s - %s", field.getName(), field.getType().getSimpleName(),
-						getDescription(type, field)));
+				out.add(String.format(" * %s: %s - %s", field.getFriendlyName(), field.getTypeInfo().getFriendlyName(),
+						field.getDescription()));
+			}
+		}
+		out.add("");
+		out.add("# Enumerations");
+		for (EnumInformation enumInfo : info.getEnumCache().stream()
+				.sorted((a, b) -> a.getFriendlyName().compareToIgnoreCase(b.getFriendlyName()))
+				.collect(Collectors.toList())) {
+			out.add("");
+			out.add(String.format("## %s (%s)", enumInfo.getFriendlyName(), enumInfo.getFullName()));
+			out.add(enumInfo.getDescription());
+			out.add("Values:");
+			for (EnumValueInformation value : enumInfo.getValueInfo().stream()
+					.sorted((a, b) -> a.getFriendlyName().compareToIgnoreCase(b.getFriendlyName()))
+					.collect(Collectors.toList())) {
+				out.add(String.format(" * %s (internally: %s) - %s", value.getFriendlyName(), value.getFullName(),
+						value.getDescription()));
 			}
 		}
 		out.add("");
