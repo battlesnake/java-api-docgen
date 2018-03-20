@@ -1,0 +1,12 @@
+bin/
+build/
+.gradle/
+.*.swp
+.*.swo
+
+# Eclipse
+.metadata/
+.recommenders/
+.classpath
+.project
+.settings/
